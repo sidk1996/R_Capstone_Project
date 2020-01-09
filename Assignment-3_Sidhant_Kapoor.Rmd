@@ -1,0 +1,340 @@
+---
+title: "Assignment -3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# loading the data set onto R
+```{r}
+fbs <- read.csv("FBS.csv")
+summary(fbs)
+
+# The data consists of a couple of missing values in the column AthleticRevenue. In order to impute the missing values, Ihave made use of the MICE package . The same hasa been installed below.The pattern of missing values is also displayed below using md.pattern.
+
+library(mice)
+md.pattern(fbs)
+
+# I have set m values to 5, which essentially means that the imputation is done 5 times
+
+temp<- mice(data=fbs, m=5,method="cart")
+temp$imp$AthleticRevenue....
+
+# Adding the missing values to the data set
+
+complete_fbs <- complete(temp,1)
+complete_fbs
+
+```
+
+
+# Explore relationships between different variables in the data set
+
+```{r}
+# Exploring relationship between variables in the data set.As seen below Stadium Capacity and Athletic Revenue show an almost positive linear relationship
+library(ggplot2)
+
+ggplot(data=complete_fbs, mapping=aes(x=complete_fbs$StadiumCapacity,y=complete_fbs$AthleticRevenue....)) +geom_point(Na.rm=TRUE)
+
+ggplot(data=complete_fbs, mapping=aes(x=complete_fbs$StadiumCapacity,y=complete_fbs$Endowment...000.)) +geom_point(Na.rm=TRUE)
+
+ggplot(data=complete_fbs, mapping=aes(x=complete_fbs$StadiumCapacity,y=complete_fbs$Enrollment)) +geom_point(Na.rm=TRUE)
+```
+
+# Calculating Euclidean Distance between variables (scaled data)
+
+```{r}
+fbs_norm<- data.frame(sapply(complete_fbs[,2:7], scale))
+head(fbs_norm,20)
+distance <- dist(fbs_norm,method="euclidean")
+distance
+
+```
+
+# since the question does not specify the number of clusters to be made and since the number of observations are also below 500, we will use hierarchial clustering 
+# perform heirarchial custering and plot the same (average)
+
+```{r}
+hc1 <- hclust(dist(fbs_norm), method = "average")
+cut_hc1 <- cutree(hc1,k=10)
+plot(hc1)
+rect.hclust(hc1,k=10)
+abline(h=3,col="red")
+
+
+
+```
+
+
+
+# counting the number of observations in each cluster 
+
+```{r}
+library(dplyr)
+fbs_norm <- mutate(fbs,cluster=cut_hc1)
+count(fbs_norm,cluster)
+```
+
+
+# perform hierarchial clustering and plpot the same (complete)
+
+```{r}
+hc2 <- hclust(dist(fbs_norm), method = "complete")
+cut_hc2 <- cutree(hc2,k=10)
+plot(hc2)
+rect.hclust(hc2,k=10)
+abline(h=3,col="red")
+
+fbs_norm <- mutate(fbs,cluster=cut_hc2)
+count(fbs_norm,cluster)
+
+```
+
+# perform hierarchial clustering and plot (single)
+
+```{r}
+hc3 <- hclust(dist(fbs_norm), method = "single")
+cut_hc3 <- cutree(hc3,k=10)
+plot(hc3)
+rect.hclust(hc3,k=10)
+abline(h=3,col="red")
+fbs_norm <- mutate(fbs,cluster=cut_hc3)
+count(fbs_norm,cluster)
+```
+# perform hierarchial clustering and plot (centroid)
+
+```{r}
+hc4 <- hclust(dist(fbs_norm), method = "centroid")
+cut_hc4 <- cutree(hc4,k=10)
+plot(hc4)
+rect.hclust(hc4,k=10)
+abline(h=3,col="red")
+fbs_norm <- mutate(fbs,cluster=cut_hc4)
+count(fbs_norm,cluster)
+```
+
+# perform hierarchial clustering and plot (ward)
+
+```{r}
+hc5<- hclust(dist(fbs_norm), method = "ward.D2")
+cut_hc5 <- cutree(hc5,k=10)
+plot(hc5)
+rect.hclust(hc5,k=10)
+abline(h=3,col="red")
+fbs_norm <- mutate(fbs,cluster=cut_hc5)
+count(fbs_norm,cluster)
+```
+
+# perform hierarchial clustering and plot (mcquitty)
+```{r}
+hc6<- hclust(dist(fbs_norm), method = "mcquitty")
+cut_hc6 <- cutree(hc6,k=10)
+plot(hc6)
+rect.hclust(hc6,k=10)
+abline(h=3,col="red")
+fbs_norm <- mutate(fbs,cluster=cut_hc6)
+count(fbs_norm,cluster)
+```
+
+# perform hierarchial clustering and plot (median)
+```{r}
+hc7<- hclust(dist(fbs_norm), method = "median")
+cut_hc7 <- cutree(hc7,k=10)
+plot(hc7)
+rect.hclust(hc7,k=10)
+abline(h=3,col="red")
+fbs_norm <- mutate(fbs,cluster=cut_hc7)
+count(fbs_norm,cluster)
+```
+
+
+
+# ward method gives us the best set of clusters woth minimum variation and minimum loss of informatin.
+
+# The other linkage methods like Single and mcquitty have clusters with a lot of variation 
+
+# Complete, Average and median methods are somewhat efficient but do not guarantee minimum loss of information. 
+
+
+
+# Part 2 -Using K Means Clustering- number of clusters =10( unscaled data)
+
+```{r}
+complete_fbs
+
+kmeans <-kmeans(complete_fbs[,2:7],10)
+kmeans$cluster
+
+library(ggplot2)
+
+ggplot(data = complete_fbs, mapping = aes(x = complete_fbs$Latitude, y = complete_fbs$Longitude, col = complete_fbs$StadiumCapacity, size=complete_fbs$Endowment...000.)) +
+  geom_point() + geom_text(aes(label = kmeans$cluster), hjust = 1, vjust = -1) + geom_point()
+
+complete_fbs <- mutate(fbs,cluster=kmeans$cluster)
+count(complete_fbs,cluster)
+
+# Calculating dunns undex to check the efficiency of clusters 
+library(clValid)
+DI <- dunn(distance, kmeans$cluster, method = "euclidean")
+DI
+# the dunn index ratio is 0.0170733
+
+
+```
+# size of largest cluster is 20 and size of smallest cluster is 2
+
+
+
+# using k means to perform clustering using scaled data (k=10)
+
+```{r}
+complete_fbs
+
+fbs_norm<- data.frame(sapply(complete_fbs[,2:7], scale))
+fbs_norm
+
+kms<- kmeans(fbs_norm,10)
+kms$cluster
+
+ggplot(data = fbs_norm, mapping = aes(x =fbs_norm$Latitude, y =fbs_norm$Longitude, col =fbs_norm$StadiumCapacity, size=fbs_norm$Endowment...000.)) +
+  geom_point() + geom_text(aes(label = kms$cluster), hjust = 1, vjust = -1) + geom_point()
+
+fbs_norm <- mutate(fbs_norm,cluster=kms$cluster)
+count(fbs_norm,cluster)
+
+# calculating the dunn index value
+DI2 <- dunn(distance, kms$cluster, method = "euclidean")
+DI2
+
+# the dunn index ratio is 0.1007312
+
+# On comparing the dunn's index ratios for both the clusters under K Means , we can say that the clusters formed using scaled/normalized data are more efficient.
+
+```
+# size of the largest cluster is 33 and size of smallest cluster is 1
+
+
+
+# Part -3 - Mining the data set
+
+```{r}
+cms <- read.csv("CookieMonsterStacked.csv")
+
+cms$ID <- factor(cms$ID)
+head(cms)
+
+length(levels(cms$Website))
+length(levels(cms$ID))
+
+sample <- cms[1:50,]
+
+ggplot(data=sample,mapping=aes(x=sample$Website,y=sample$ID)) +geom_point()
+
+
+
+```
+
+# import and install arules package for mining associatiton rules 
+
+```{r}
+library(arules)
+category<- split(cms$Website,f=cms$ID)
+category[1:5]
+
+```
+
+
+# remove duplications 
+
+```{r}
+category<- lapply(category,unique)
+category<- as(category,"transactions")
+category[1:5]
+
+```
+
+# make the support table 
+
+```{r}
+itemFrequency(category)
+itemFrequencyPlot(category)
+```
+
+
+# build the association rule 
+
+
+# Inspect Association rules (conditioned on support=0.01 and confidence level=0.85)
+
+```{r}
+
+rule1 <-apriori(category, parameter=list(support=0.02,confidence=0.85))
+
+
+```
+
+
+```{r}
+rule1_sort <- sort(rule1,by="confidence", decreasing = TRUE)
+rule1_sort <- sort(rule1,by="lift",decreasing = TRUE)
+inspect(rule1)
+```
+
+
+
+# When there is a support between 0.03 to 0.06 and a confidence level of 85%, there are 0 or very less recommendation. However, when there is a support between 0.01 and 0.02, there are significant number of recommendations.
+
+# To conclude, this recommender system would generate efficient associations if the support is between 0.01 and 0.02 along with a confidence of 85%.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
